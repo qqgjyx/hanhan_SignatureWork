@@ -19,3 +19,8 @@ uv.lock
 .idea/
 .vscode/
 *.swp
+
+# HuggingFace model cache
+tmp/
+
+data/

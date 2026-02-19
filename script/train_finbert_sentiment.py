@@ -7,27 +7,28 @@ train_finbert_sentiment.py
 再按日期聚合成日度情绪因子 fed_sent_pos/neg/neu/net。
 
 运行方式（建议先创建 venv 并安装 transformers/torch）:
-    /usr/local/bin/python3 "/Users/wyhmac/Desktop/SW/train_finbert_sentiment.py"
+    uv run python script/train_finbert_sentiment.py
 """
 
-import os
 from pathlib import Path
-import math
 import pandas as pd
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from tqdm import tqdm
+from transformers import BertTokenizer, BertForSequenceClassification
 
 
 # ===================== 路径配置 =====================
 # !!! 如需调整路径，只改这里即可
-BASE_DIR = Path("/Users/wyhmac/Desktop/SW")
-FED_NEWS_CSV = BASE_DIR / "美联储信息2" / "fed_news_20240630_20251001_with_content.csv"
+BASE_DIR = Path(__file__).resolve().parent.parent
+FED_NEWS_CSV = BASE_DIR / "data" / "fed_news_20240630_20251001_with_content.csv"
 
-ARTICLES_OUT = BASE_DIR / "fed_sentiment_articles.csv"
-DAILY_OUT    = BASE_DIR / "fed_sentiment_daily.csv"
+ARTICLES_OUT = BASE_DIR / "data" / "fed_sentiment_articles.csv"
+DAILY_OUT    = BASE_DIR / "data" / "fed_sentiment_daily.csv"
 
 # 使用的 FinBERT 模型（HuggingFace id）
 FINBERT_MODEL_NAME = "yiyanghkust/finbert-tone"
+MODEL_CACHE_DIR = BASE_DIR / "tmp"
+FINBERT_REVISION = "4921590d3c0c3832c0efea24c8381ce0bda7844b"
 
 
 # ===================== 工具函数 =====================
@@ -64,11 +65,20 @@ def load_fed_news(csv_path: Path) -> pd.DataFrame:
 def load_finbert(model_name: str = FINBERT_MODEL_NAME):
     """加载 FinBERT 模型与 tokenizer。"""
     print(f">>> loading FinBERT model: {model_name}")
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    tokenizer = BertTokenizer.from_pretrained(
+        model_name, cache_dir=MODEL_CACHE_DIR, revision=FINBERT_REVISION
+    )
+    model = BertForSequenceClassification.from_pretrained(
+        model_name, cache_dir=MODEL_CACHE_DIR, revision=FINBERT_REVISION
+    )
     model.eval()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     model.to(device)
     print(f"model device: {device}")
     return tokenizer, model, device
@@ -105,8 +115,9 @@ def infer_sentiment(df: pd.DataFrame,
     all_neg = []
     all_neu = []
 
+    n_batches = (n + batch_size - 1) // batch_size
     with torch.no_grad():
-        for batch in chunked(texts, batch_size):
+        for batch in tqdm(chunked(texts, batch_size), total=n_batches, desc="FinBERT"):
             enc = tokenizer(
                 batch,
                 padding=True,
