@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environment
+.venv/
+
+# pytest
+.pytest_cache/
+
+# uv
+uv.lock
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
