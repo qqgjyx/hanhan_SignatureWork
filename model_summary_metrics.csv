@@ -1,0 +1,9 @@
+model,quarter,auc,bal_acc
+logistic,2025Q1,0.5511,0.5338
+logistic,2025Q2,0.4637,0.4733
+xgboost,2025Q1,0.6258,0.5901
+xgboost,2025Q2,0.5250,0.5098
+lstm,2025Q1,0.5791,0.5606
+lstm,2025Q2,0.5706,0.5418
+ensemble,2025Q1,0.7151,0.6336
+ensemble,2025Q2,0.5994,0.5533
